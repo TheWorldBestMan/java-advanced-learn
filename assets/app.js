@@ -481,6 +481,7 @@
       + '<h1>' + esc(ch.title) + '</h1>'
       + '<div class="meta">' + ch.tags.map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('') + '</div>'
       + '<div class="goals"><div class="g-title">本章学习目标</div><ul>' + ch.goals.map(function (g) { return '<li>' + esc(g) + '</li>'; }).join('') + '</ul></div>'
+      + ((window.TOPIC_GUIDES || []).some(function (t) { return t.chapterId === ch.id || t.links.some(function (l) { return l[1] === ch.id; }); }) ? '<div class="learning-links chapter-topic-links">' + (window.TOPIC_GUIDES || []).filter(function (t) { return t.chapterId === ch.id || t.links.some(function (l) { return l[1] === ch.id; }); }).map(function (t) { return '<button class="learning-link" type="button" data-nav="#/topics/' + esc(t.id) + '">专题知识地图：' + esc(t.title) + ' →</button>'; }).join('') + '</div>' : '')
       + '</div>';
 
     html += chapterLearning(ch);

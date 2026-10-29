@@ -684,3 +684,34 @@ pre.code .tok-com { color:#93a3b8; }
 .mobile-ex-nav { display:none; }
 @media(max-width:700px) { .mobile-ex-nav { display:flex; } .ex-actions .btn { min-height:44px; } }
 @media(max-width:520px) { .topbar-search, .theme-toggle { white-space:nowrap; flex-shrink:0; } .topbar .crumb { min-width:0; } }
+/* 独立专题 */
+.topic-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.topic-card { display:flex; flex-direction:column; min-width:0; margin:0; }
+.topic-card h2 { margin:6px 0 10px; font-size:21px; }
+.topic-card p, .topic-content p, .topic-content li, .topic-code p { line-height:1.8; overflow-wrap:anywhere; }
+.topic-card .btn { align-self:flex-start; margin-top:auto; }
+.topic-jumps { display:flex; flex-wrap:wrap; gap:8px; }
+.chapter-topic-links { margin-top:16px; }
+.topic-branch { scroll-margin-top:80px; }
+.topic-branch summary { display:flex; gap:12px; align-items:flex-start; cursor:pointer; list-style:none; }
+.topic-branch summary::-webkit-details-marker { display:none; }
+.topic-branch summary::after { content:'+'; margin-left:auto; color:var(--accent); font-size:22px; }
+.topic-branch[open] summary::after { content:'−'; }
+.topic-branch summary strong { display:block; font-size:18px; }
+.topic-branch summary small { display:block; color:var(--text-dim); font-size:13px; font-weight:400; line-height:1.6; margin-top:5px; }
+.topic-index { font:700 14px var(--mono); color:var(--accent); padding-top:4px; }
+.topic-content { padding-top:8px; }
+.topic-content h3, .topic-code h3 { font-size:16px; margin:20px 0 8px; }
+.topic-example { border-left:3px solid var(--accent); background:var(--bg-soft); padding:12px 16px; border-radius:6px; }
+.topic-example p { margin:6px 0 0; }
+.topic-problems { list-style:none; padding:0; }
+.topic-problems li { display:flex; flex-wrap:wrap; gap:4px 12px; padding:8px 0; border-bottom:1px solid var(--border); }
+.topic-problems a { color:var(--accent); font-weight:600; overflow-wrap:anywhere; }
+.topic-problems span { color:var(--text-dim); }
+.topic-code { border-top:1px solid var(--border); margin-top:20px; padding-top:8px; }
+.topic-check { padding:14px 0; border-bottom:1px solid var(--border); line-height:1.8; }
+.topic-check summary { color:var(--accent); cursor:pointer; margin-top:8px; }
+.topic-check p { line-height:1.8; overflow-wrap:anywhere; }
+.topic-code pre { max-width:100%; overflow:auto; background:var(--bg-code); border:1px solid var(--border); border-radius:8px; padding:14px; font:13px/1.6 var(--mono); }
+.topic-branch summary:focus-visible, .topic-problems a:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+@media(max-width:700px) { .topic-grid { grid-template-columns:1fr; } .topic-problems li { display:block; } .topic-problems span { display:block; } }

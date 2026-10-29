@@ -33,5 +33,22 @@ for (const task of context.PRACTICE_STUDIO.bugs.concat(context.PRACTICE_STUDIO.p
   check(chapters.has(task.chapterId), '练习章节不存在: ' + task.id);
   check(context.PRACTICE_STUDIO.banks[task.id] && task.tests.length > 0, '缺少公开测试: ' + task.id);
 }
+const topics = new Set(), examples = new Set(), problemSlugs = new Map(); let branchCount = 0, problemCount = 0;
+for (const topic of context.TOPIC_GUIDES || []) {
+  check(/^[a-z0-9-]+$/.test(topic.id) && !topics.has(topic.id), '无效或重复专题: ' + topic.id); topics.add(topic.id);
+  check(chapters.has(topic.chapterId) && topic.intro && topic.prerequisites && topic.goals.length && topic.branches.length, '专题字段不完整: ' + topic.id);
+  check(Array.isArray(topic.checks) && topic.checks.length > 0 && topic.checks.every(c => c.length === 2 && c[0] && c[1]), '专题自测不完整: ' + topic.id);
+  for (const link of topic.links) check(chapters.has(link[1]) && (!link[2] || sections.has(link[1] + '/' + link[2])), '专题课程链接无效: ' + topic.id + ' / ' + link.join('/'));
+  const branchIds = new Set();
+  for (const branch of topic.branches) {
+    branchCount++; check(/^[a-z0-9-]+$/.test(branch.id) && !branchIds.has(branch.id), '无效或重复专题分支: ' + topic.id + '/' + branch.id); branchIds.add(branch.id);
+    check(branch.title && branch.signal && branch.core && branch.steps.length && branch.example && branch.pitfalls && branch.cost && branch.problems.length, '专题分支内容不完整: ' + topic.id + '/' + branch.id);
+    for (const problem of branch.problems) {
+      problemCount++; check(Number.isInteger(problem.number) && problem.number > 0 && /^[a-z0-9-]+$/.test(problem.slug) && problem.name && problem.focus, '专题题目字段无效: ' + topic.id + '/' + branch.id);
+      if (problemSlugs.has(problem.number)) check(problemSlugs.get(problem.number) === problem.slug, '同一题号对应不同链接: ' + problem.number); else problemSlugs.set(problem.number, problem.slug);
+    }
+  }
+  for (const example of topic.examples || []) { check(!examples.has(example.id) && example.code && typeof example.output === 'string', '专题示例字段错误: ' + example.id); examples.add(example.id); }
+}
 if (errors.length) { console.error(errors.join('\n')); process.exitCode = 1; }
-else console.log(`内容验证通过：${chapters.size} 章、${sections.size} 节、${exercises.size} 个课程练习/项目。`);
+else console.log(`内容验证通过：${chapters.size} 章、${sections.size} 节、${exercises.size} 个课程练习/项目；${topics.size} 个专题、${branchCount} 个分支、${problemCount} 个题目入口。`);

@@ -21,15 +21,21 @@ async function main(){
   assert.equal(await evalJs("document.querySelector('h1').textContent.includes('Java')"),true);
   for(const width of [320,390,1280]){
     await send('Emulation.setDeviceMetricsOverride',{width,height:850,deviceScaleFactor:1,mobile:width<500});
-    for(const hash of ['#/','#/c/c1/s/s1','#/c/c1/ex','#/library','#/review']){
+    for(const hash of ['#/','#/c/c1/s/s1','#/c/c1/ex','#/library','#/review','#/topics','#/topics/tree/traversal','#/topics/graph/dijkstra']){
       await evalJs(`location.hash=${JSON.stringify(hash)}`);await delay(250);
       const metrics=await evalJs('({body:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth})');
       assert.ok(metrics.body<=metrics.viewport+1,`${width} ${hash} 横向溢出 ${JSON.stringify(metrics)}`);
-      if ((width===390&&hash==='#/c/c1/s/s1')||(width===1280&&hash==='#/')) {const shot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(os.tmpdir(),`java-learn-${width}.png`),Buffer.from(shot.data,'base64'));}
+      if ((width===390&&hash==='#/topics/tree/traversal')||(width===1280&&hash==='#/topics/graph/dijkstra')) {const shot=await send('Page.captureScreenshot',{format:'png'});fs.writeFileSync(path.join(os.tmpdir(),`java-topics-${width}.png`),Buffer.from(shot.data,'base64'));}
     }
   }
   const routes=await evalJs("window.COURSE.flatMap(c=>c.sections.map(s=>'#/c/'+c.id+'/s/'+s.id).concat(['#/c/'+c.id+'/quiz','#/c/'+c.id+'/ex','#/c/'+c.id+'/interview']))");
   for(const hash of routes){await evalJs(`location.hash=${JSON.stringify(hash)}`);await delay(40);assert.equal(await evalJs("!!document.querySelector('#content .card')"),true,'路由未渲染: '+hash);}
+  const topicRoutes=await evalJs("window.TOPIC_GUIDES.flatMap(t=>['#/topics/'+t.id].concat(t.branches.map(b=>'#/topics/'+t.id+'/'+b.id)))");
+  for(const hash of topicRoutes){await evalJs(`location.hash=${JSON.stringify(hash)}`);await delay(30);assert.equal(await evalJs("!!document.querySelector('#content .topic-branch')"),true,'专题未渲染: '+hash);}
+  await evalJs("location.hash='#/topics/tree/traversal'");await waitFor("document.querySelector('#topic-branch-traversal[open]')");
+  assert.equal(await evalJs("document.querySelector('#topic-branch-traversal .topic-problems a').href.includes('leetcode.cn/problems/')"),true);
+  await evalJs("document.querySelector('[data-topic-run]').click()");await waitFor("document.querySelector('.topic-output').textContent.includes('实际运行输出')");
+  await evalJs("location.hash='#/library?q=%E6%9C%80%E8%BF%91%E5%85%AC%E5%85%B1%E7%A5%96%E5%85%88'");await waitFor("document.querySelector('.library-results').textContent.includes('树与树形结构')");
   await evalJs("location.hash='#/c/c1/quiz'"); await waitFor("document.querySelector('[data-answer]')");
   await evalJs("(()=>{let q=window.COURSE.find(c=>c.id==='c1').quiz[0];document.querySelector('[data-answer=\"0:'+((q.answer+1)%q.options.length)+'\"]').click()})()");
   assert.equal(await evalJs("!!document.querySelector('[data-quiz-retry]')"),true);
