@@ -81,6 +81,7 @@
       + '<div class="code-head">'
       + (title ? '<span>' + esc(title) + '</span>' : '')
       + '<span class="lang">' + esc(lang || 'java') + '</span>'
+      + '<button class="code-expand" data-code-expand type="button" aria-expanded="false">展开代码</button>'
       + '<button class="copy" data-copy="1" type="button">复制</button>'
       + '</div>'
       + '<pre class="code">' + (numbered ? code.split('\n').map(function (line, i) { return '<span class="source-line" data-line="' + (i + 1) + '">' + highlight(line) + '</span>'; }).join('\n') : highlight(code)) + '</pre>'
@@ -224,12 +225,14 @@
   var KEY = 'java-advanced-progress-v1';
   var state = load();
   function load() {
-    var d = { theme: 'dark', doneSections: {}, quiz: {}, doneEx: {}, code: {}, tests: {}, bookmarks: {}, weeklyMinutes: 180, xp: 0 };
+    var d = { theme: 'dark', doneSections: {}, quiz: {}, doneEx: {}, code: {}, tests: {}, bookmarks: {}, weeklyMinutes: 180, xp: 0, learningFlow: {version:1,answers:{},reviews:{},problems:{},resume:null} };
     try {
       var raw = localStorage.getItem(KEY);
       if (raw) { var p = JSON.parse(raw); for (var k in p) { if (Object.prototype.hasOwnProperty.call(p, k)) d[k] = p[k]; } }
       if (!d.tests || typeof d.tests !== 'object' || Array.isArray(d.tests)) d.tests = {};
       if (!d.bookmarks || typeof d.bookmarks !== 'object' || Array.isArray(d.bookmarks)) d.bookmarks = {};
+      if (!d.learningFlow || d.learningFlow.version !== 1 || !d.learningFlow.answers || !d.learningFlow.reviews) d.learningFlow = {version:1,answers:{},reviews:{},problems:{},resume:null};
+      if (!d.learningFlow.problems || typeof d.learningFlow.problems !== 'object' || Array.isArray(d.learningFlow.problems)) d.learningFlow.problems = {};
     } catch (e) {}
     return d;
   }
@@ -243,6 +246,7 @@
   window.LearningProgress = {
     status: function (record) {
       if (record.type === 'exercise') return exerciseStatus(record.id);
+      if (record.type === 'topicproblem') return state.learningFlow.problems[record.problemNumber] ? 'attempted' : 'new';
       if (record.type === 'lesson') return state.doneSections[record.chapterId + '-' + record.id.split('/')[1]] ? 'read' : 'new';
       if (record.type === 'quiz') { var match = /^quiz-(.+)-(\d+)$/.exec(record.id), ch = match && findChapter(match[1]), q = ch && state.quiz[ch.id]; if (q && q.answers[match[2]] != null) return q.answers[match[2]] === ch.quiz[Number(match[2])].answer ? 'attempted' : 'failed'; }
       if (record.type === 'bug' || record.type === 'project') return window.StudyHub.taskStatus(record.id);
@@ -251,7 +255,9 @@
     bookmarked: function (id) { return !!state.bookmarks[id]; },
     toggleBookmark: function (id) { if (state.bookmarks[id]) delete state.bookmarks[id]; else state.bookmarks[id] = true; save(); },
     quiz: function () { return state.quiz; },
-    tests: function () { return state.tests; }
+    tests: function () { return state.tests; },
+    flow: function () { return state.learningFlow; },
+    saveFlow: function () { return save(); }
   };
   var BACKUP_KEYS = [KEY, 'java-advanced-case-drafts-v1', 'java-advanced-studio-v1'];
   function exportProgress() {
@@ -271,6 +277,14 @@
     } catch (e) { toast('导出失败：浏览器无法读取本地记录', false); }
   }
   function isRecord(value) { return value && typeof value === 'object' && !Array.isArray(value); }
+  function validLearningFlow(value) {
+    function timestamp(n) { return n == null || (typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 8640000000000000); }
+    if (!isRecord(value) || value.version !== 1 || !isRecord(value.answers) || !isRecord(value.reviews) || (value.problems != null && !isRecord(value.problems))) return false;
+    if (value.resume != null && (!isRecord(value.resume) || typeof value.resume.section !== 'string' || typeof value.resume.anchor !== 'string')) return false;
+    return Object.values(value.answers).every(function(a){return isRecord(a) && Number.isSafeInteger(a.choice) && a.choice >= 0 && typeof a.correct === 'boolean' && Number.isSafeInteger(a.attempts) && a.attempts > 0 && timestamp(a.updatedAt);}) &&
+      Object.values(value.reviews).every(function(r){return isRecord(r) && typeof r.title === 'string' && typeof r.href === 'string' && r.href.indexOf('#/') === 0 && typeof r.note === 'string' && typeof r.source === 'string' && timestamp(r.createdAt) && timestamp(r.reviewedAt) && timestamp(r.dueAt);}) &&
+      (value.problems == null || Object.values(value.problems).every(function(v){return typeof v==='boolean';}));
+  }
   function importProgress(file) {
     if (!file) return;
     if (file.size > 20 * 1024 * 1024) { toast('备份文件不能超过 20 MB', false); return; }
@@ -281,6 +295,7 @@
       if (!isRecord(progress) || !isRecord(progress.doneSections) || !isRecord(progress.quiz) || !isRecord(progress.doneEx) || !isRecord(progress.code)) throw new Error('学习记录不完整');
       if (progress.tests != null && (!isRecord(progress.tests) || !Object.values(progress.tests).every(function (r) { return isRecord(r) && typeof r.code === 'string' && Number.isSafeInteger(r.passed) && Number.isSafeInteger(r.total) && r.passed >= 0 && r.passed <= r.total; }))) throw new Error('测试记录字段不正确');
       if (progress.bookmarks != null && (!isRecord(progress.bookmarks) || !Object.values(progress.bookmarks).every(function (v) { return typeof v === 'boolean'; }))) throw new Error('收藏记录字段不正确');
+      if (progress.learningFlow != null && !validLearningFlow(progress.learningFlow)) throw new Error('随堂学习记录字段不正确');
       if (!['dark', 'light'].includes(progress.theme) || !Number.isSafeInteger(progress.xp) || progress.xp < 0 ||
           (progress.lastLesson != null && typeof progress.lastLesson !== 'string') ||
           !Object.values(progress.doneSections).every(function (v) { return typeof v === 'boolean'; }) ||
@@ -433,6 +448,8 @@
     var last = SECTIONS.find(function (item) { return item.id === state.lastLesson; });
     if (last && last.ch.sections.every(function (s) { return state.doneSections[last.ch.id + '-' + s.id]; }) && !(state.quiz[last.ch.id] && state.quiz[last.ch.id].done)) html += '<div class="card"><strong>下一步：巩固 ' + esc(last.ch.title) + '</strong><p class="muted small">已标记读完本章，可以先做随堂测验，再继续下一章。</p><button class="btn" type="button" data-nav="#/c/' + esc(last.ch.id) + '/quiz">进行本章测验</button></div>';
     html += weeklyPlan();
+    if (window.LearningFlow && window.LearningFlow.resumeHref()) html += '<div class="card resume-card"><strong>上次阅读的位置</strong><p class="muted small">回到当前浏览器上次读到的内容；页面内的位置按知识块记录。</p><button class="btn ghost" type="button" data-nav="' + esc(window.LearningFlow.resumeHref()) + '">继续上次阅读 →</button></div>';
+    if (window.LearningFlow) { var reviews = Object.values(state.learningFlow.reviews), due = reviews.filter(function (r) { return r && (!r.dueAt || r.dueAt <= Date.now()); }).length; if (due) html += '<div class="card review-reminder"><strong>有 ' + due + ' 项内容可以复习</strong><p class="muted small">包含随堂错题或手动标记的知识点。</p><button class="btn ghost" type="button" data-nav="#/review">查看复习内容 →</button></div>'; }
     html += '<div class="card"><div class="card-title">📊 我的学习进度</div>'
       + '<div class="progressbar"><div class="fill" style="width:' + pct + '%"></div></div>'
       + '<p class="muted small">已完成 ' + totalDone() + ' / ' + SECTIONS.length + ' 个小节 · 经验值 ' + xp() + '（Lv.' + level() + '）· 测验 ' + Object.keys(state.quiz).length + ' 章 · 练习 ' + Object.keys(state.doneEx).filter(function (id) { return state.doneEx[id]; }).length + ' 道</p>'
@@ -507,18 +524,20 @@
     html += '<div class="card-title">' + esc(sec.title) + '</div>';
     if (sec.minutes) html += '<div class="card-sub">预计阅读 ' + sec.minutes + ' 分钟</div>';
     html += '<div class="progressbar"><div class="fill" style="width:' + (done ? 100 : 0) + '%"></div></div>';
+    html += '<details class="lesson-outline" open><summary>本节学习目录</summary><p class="muted small">按顺序学习，也可以直接跳到需要复习的部分。</p><nav class="lesson-jumps" aria-label="本节快捷导航"><button type="button" data-scroll-to="lesson-content">基础概念</button>' + (Object.values((window.CHAPTER_DEEPENING||{}).mapping||{}).includes(ch.id+'/'+sec.id) ? '<button type="button" data-scroll-to="lesson-details">原理与题型</button>' : '') + '<button type="button" data-scroll-to="lesson-quick">入门案例</button><button type="button" data-scroll-to="lesson-demo">动态演示</button>' + ((window.LESSON_INTERACTIONS || {})[ch.id+'/'+sec.id] ? '<button type="button" data-scroll-to="lesson-interactions">随堂练习</button>' : '') + '<button type="button" data-scroll-to="lesson-practice">场景练习</button></nav><p class="muted small">先读基础概念和入门案例；原理与题型可按需要展开，作为进阶补充。</p></details>';
     html += sectionLearning(ch, sec);
-    html += '<nav class="lesson-jumps" aria-label="本节快捷导航"><button type="button" data-scroll-to="lesson-content">概念</button><button type="button" data-scroll-to="lesson-quick">入门案例</button><button type="button" data-scroll-to="lesson-demo">步骤演示</button><button type="button" data-scroll-to="lesson-practice">练习</button></nav><div id="lesson-content"></div>';
+    html += '<div id="lesson-content" data-reading-anchor></div>';
     var deepeningAdded = false;
     sec.blocks.forEach(function (b) {
       if (!deepeningAdded && (b.t === 'quick-start' || b.t === 'case-studies')) { if (window.TopicGuides) html += window.TopicGuides.renderSection(ch.id, sec.id); deepeningAdded = true; }
-      if (b.t === 'quick-start') html += '<div id="lesson-quick"></div>';
+      if (b.t === 'quick-start') html += '<div id="lesson-quick" data-reading-anchor></div>';
       if (b.t === 'case-studies') {
-        html += '<div id="lesson-demo"></div>';
+        html += '<div id="lesson-demo" data-reading-anchor></div>';
         if (window.LearningTools) html += window.LearningTools.guide(ch.id + '/' + sec.id);
         if (window.AlgorithmLab) html += window.AlgorithmLab.panel(ch.id + '/' + sec.id);
+        if (window.LearningFlow) html += window.LearningFlow.renderSection(ch.id + '/' + sec.id);
       }
-      if (b.t === 'practice') html += '<div id="lesson-practice"></div>';
+      if (b.t === 'practice') html += '<div id="lesson-practice" data-reading-anchor></div>';
       html += renderBlock(b);
     });
     if (!deepeningAdded && window.TopicGuides) html += window.TopicGuides.renderSection(ch.id, sec.id);
@@ -706,7 +725,6 @@
   }
   function crumb() {
     var p = parseHash();
-    if (p[0] === 'topics' && window.TopicGuides) { location.replace(window.TopicGuides.legacy(p)); return; }
     if (!p.length) return '<b>首页</b>';
     if (window.StudyHub && window.StudyHub.handles(p[0])) return '<b>' + esc(window.StudyHub.title(p[0])) + '</b>';
     var ch = findChapter(p[1]);
@@ -724,6 +742,7 @@
     if (window.StudyHub) window.StudyHub.stop();
     applyTheme();
     var p = parseHash();
+    if (p[0] === 'topics' && window.TopicGuides) { location.replace(window.TopicGuides.legacy(p)); return; }
     if (p[0] === 'c' && p[2] === 's') {
       var lessonKey = p[1] + '-' + p[3];
       if (SECTIONS.some(function (item) { return item.id === lessonKey; }) && state.lastLesson !== lessonKey) {
@@ -740,8 +759,8 @@
     if (kind === 'quiz') { renderQuiz(ch); renderTopbar(crumb()); syncNav(); if (window.StudyHub) window.StudyHub.follow(p); return; }
     if (kind === 'ex') { renderExercises(ch); renderTopbar(crumb()); syncNav(); if (window.StudyHub) window.StudyHub.follow(p); return; }
     if (kind === 'interview') { renderInterview(ch); renderTopbar(crumb()); syncNav(); if (window.StudyHub) window.StudyHub.follow(p); return; }
-    if (kind === 's') { renderChapter(ch, p[3]); renderTopbar(crumb()); syncNav(); if (window.TopicGuides) { window.TopicGuides.mount($('#content')); window.TopicGuides.follow(p); } if (window.AlgorithmLab) window.AlgorithmLab.mountAll(); if (window.StudyHub) window.StudyHub.follow(p); return; }
-    renderChapter(ch, null); renderTopbar(crumb()); syncNav(); if (window.TopicGuides) window.TopicGuides.mount($('#content')); if (window.AlgorithmLab) window.AlgorithmLab.mountAll();
+    if (kind === 's') { renderChapter(ch, p[3]); renderTopbar(crumb()); syncNav(); if (window.TopicGuides) { window.TopicGuides.mount($('#content')); window.TopicGuides.follow(p); } if (window.LearningFlow) window.LearningFlow.mount($('#content'),p); if (window.AlgorithmLab) window.AlgorithmLab.mountAll(); if (window.StudyHub) window.StudyHub.follow(p); return; }
+    renderChapter(ch, null); renderTopbar(crumb()); syncNav(); if (window.TopicGuides) window.TopicGuides.mount($('#content')); if (window.LearningFlow) window.LearningFlow.mount($('#content'),p); if (window.AlgorithmLab) window.AlgorithmLab.mountAll();
   }
 
   function syncNav() {
@@ -760,6 +779,7 @@
   /* ================= 事件委托 ================= */
   document.addEventListener('click', function (e) {
     var t = e.target;
+    var expandCode=t.closest('[data-code-expand]');if(expandCode){var wrap=expandCode.closest('.code-wrap'),expanded=wrap.classList.toggle('expanded');expandCode.setAttribute('aria-expanded',String(expanded));expandCode.textContent=expanded?'收起代码':'展开代码';return;}
     var jump = t.closest('[data-scroll-to]');
     if (jump) { e.preventDefault(); var destination = document.getElementById(jump.getAttribute('data-scroll-to')); if (destination) destination.scrollIntoView({block:'start'}); return; }
     var retry = t.closest('[data-quiz-retry]');

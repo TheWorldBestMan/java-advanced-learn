@@ -54,5 +54,13 @@ for (const topic of context.TOPIC_GUIDES || []) {
   for (const example of topic.examples || []) { check(!examples.has(example.id) && example.code && typeof example.output === 'string', '专题示例字段错误: ' + example.id); examples.add(example.id); }
 }
 for(const key of Object.keys(context.CHAPTER_DEEPENING.mapping))check((context.TOPIC_GUIDES||[]).some(t=>t.branches.some(b=>t.id+'/'+b.id===key)), '章节映射引用未知分支: '+key);
+const inlineIds=new Set();let inlineCount=0;
+for(const [section,lesson] of Object.entries(context.LESSON_INTERACTIONS||{})) {
+  check(sections.has(section), '随堂练习小节不存在: '+section);
+  const match=/^#\/c\/([^/]+)\/ex\/([^/]+)$/.exec(lesson.exercise||'');
+  check(match && chapters.has(match[1]) && exercises.has(match[2]), '随堂练习链接无效: '+section);
+  for(const q of lesson.questions||[]) { inlineCount++;check(/^[a-z0-9-]+$/.test(q.id) && !inlineIds.has(q.id), '随堂题 ID 重复或无效: '+q.id);inlineIds.add(q.id);check(q.question && q.hint && q.review && Array.isArray(q.options) && q.options.length>=2 && Array.isArray(q.feedback) && q.feedback.length===q.options.length && q.feedback.every(Boolean) && Number.isInteger(q.answer) && q.answer>=0 && q.answer<q.options.length, '随堂题字段不完整: '+q.id); }
+}
+for(const section of sections)check(!!context.LESSON_INTERACTIONS[section], '小节缺少随堂练习: '+section);
 if (errors.length) { console.error(errors.join('\n')); process.exitCode = 1; }
-else console.log(`内容验证通过：${chapters.size} 章、${sections.size} 节、${exercises.size} 个课程练习/项目；${topics.size} 个专题、${branchCount} 个分支、${problemCount} 个题目入口。`);
+else console.log(`内容验证通过：${chapters.size} 章、${sections.size} 节、${exercises.size} 个课程练习/项目；${branchCount} 个知识分支、${problemCount} 个题目入口、${inlineCount} 道随堂题。`);
