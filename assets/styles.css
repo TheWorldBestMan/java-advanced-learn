@@ -715,3 +715,10 @@ pre.code .tok-com { color:#93a3b8; }
 .topic-code pre { max-width:100%; overflow:auto; background:var(--bg-code); border:1px solid var(--border); border-radius:8px; padding:14px; font:13px/1.6 var(--mono); }
 .topic-branch summary:focus-visible, .topic-problems a:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 @media(max-width:700px) { .topic-grid { grid-template-columns:1fr; } .topic-problems li { display:block; } .topic-problems span { display:block; } }
+.chapter-deepening { margin:24px 0; padding:18px; border:1px solid var(--border); border-radius:10px; background:var(--bg-soft); }
+.chapter-deepening>h3 { margin:0 0 8px; }
+.chapter-guide { margin:12px 0; padding:16px; border:1px solid var(--border); border-radius:8px; background:var(--bg-card); }
+.chapter-guide .topic-content h4 { margin:20px 0 8px; font-size:15px; }
+.chapter-checks { margin-top:24px; }
+.chapter-checks>h4 { font-size:16px; }
+@media(max-width:700px) { .chapter-deepening { padding:0; border:0; background:transparent; } .chapter-guide { padding:12px; } }

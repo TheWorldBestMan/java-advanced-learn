@@ -42,6 +42,9 @@ for (const topic of context.TOPIC_GUIDES || []) {
   const branchIds = new Set();
   for (const branch of topic.branches) {
     branchCount++; check(/^[a-z0-9-]+$/.test(branch.id) && !branchIds.has(branch.id), '无效或重复专题分支: ' + topic.id + '/' + branch.id); branchIds.add(branch.id);
+    const key=topic.id+'/'+branch.id, destination=context.CHAPTER_DEEPENING.mapping[key], explanation=context.CHAPTER_DEEPENING.details[key];
+    check(sections.has(destination), '章节讲解未对应有效小节: '+key);
+    check(Array.isArray(explanation) && explanation.length===2 && explanation.every(x=>typeof x==='string' && x.length>=20), '章节讲解缺少原理或手推: '+key);
     check(branch.title && branch.signal && branch.core && branch.steps.length && branch.example && branch.pitfalls && branch.cost && branch.problems.length, '专题分支内容不完整: ' + topic.id + '/' + branch.id);
     for (const problem of branch.problems) {
       problemCount++; check(Number.isInteger(problem.number) && problem.number > 0 && /^[a-z0-9-]+$/.test(problem.slug) && problem.name && problem.focus, '专题题目字段无效: ' + topic.id + '/' + branch.id);
@@ -50,5 +53,6 @@ for (const topic of context.TOPIC_GUIDES || []) {
   }
   for (const example of topic.examples || []) { check(!examples.has(example.id) && example.code && typeof example.output === 'string', '专题示例字段错误: ' + example.id); examples.add(example.id); }
 }
+for(const key of Object.keys(context.CHAPTER_DEEPENING.mapping))check((context.TOPIC_GUIDES||[]).some(t=>t.branches.some(b=>t.id+'/'+b.id===key)), '章节映射引用未知分支: '+key);
 if (errors.length) { console.error(errors.join('\n')); process.exitCode = 1; }
 else console.log(`内容验证通过：${chapters.size} 章、${sections.size} 节、${exercises.size} 个课程练习/项目；${topics.size} 个专题、${branchCount} 个分支、${problemCount} 个题目入口。`);

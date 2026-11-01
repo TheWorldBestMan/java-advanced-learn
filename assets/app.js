@@ -481,7 +481,6 @@
       + '<h1>' + esc(ch.title) + '</h1>'
       + '<div class="meta">' + ch.tags.map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('') + '</div>'
       + '<div class="goals"><div class="g-title">本章学习目标</div><ul>' + ch.goals.map(function (g) { return '<li>' + esc(g) + '</li>'; }).join('') + '</ul></div>'
-      + ((window.TOPIC_GUIDES || []).some(function (t) { return t.chapterId === ch.id || t.links.some(function (l) { return l[1] === ch.id; }); }) ? '<div class="learning-links chapter-topic-links">' + (window.TOPIC_GUIDES || []).filter(function (t) { return t.chapterId === ch.id || t.links.some(function (l) { return l[1] === ch.id; }); }).map(function (t) { return '<button class="learning-link" type="button" data-nav="#/topics/' + esc(t.id) + '">专题知识地图：' + esc(t.title) + ' →</button>'; }).join('') + '</div>' : '')
       + '</div>';
 
     html += chapterLearning(ch);
@@ -510,7 +509,9 @@
     html += '<div class="progressbar"><div class="fill" style="width:' + (done ? 100 : 0) + '%"></div></div>';
     html += sectionLearning(ch, sec);
     html += '<nav class="lesson-jumps" aria-label="本节快捷导航"><button type="button" data-scroll-to="lesson-content">概念</button><button type="button" data-scroll-to="lesson-quick">入门案例</button><button type="button" data-scroll-to="lesson-demo">步骤演示</button><button type="button" data-scroll-to="lesson-practice">练习</button></nav><div id="lesson-content"></div>';
+    var deepeningAdded = false;
     sec.blocks.forEach(function (b) {
+      if (!deepeningAdded && (b.t === 'quick-start' || b.t === 'case-studies')) { if (window.TopicGuides) html += window.TopicGuides.renderSection(ch.id, sec.id); deepeningAdded = true; }
       if (b.t === 'quick-start') html += '<div id="lesson-quick"></div>';
       if (b.t === 'case-studies') {
         html += '<div id="lesson-demo"></div>';
@@ -520,6 +521,7 @@
       if (b.t === 'practice') html += '<div id="lesson-practice"></div>';
       html += renderBlock(b);
     });
+    if (!deepeningAdded && window.TopicGuides) html += window.TopicGuides.renderSection(ch.id, sec.id);
     html += '<div class="done-row">'
       + '<button class="btn ' + (done ? 'done' : '') + '" type="button" data-section-done="' + sid + '">' + (done ? '✓ 已完成本节' : '标记本节完成') + '</button>'
       + '<span class="hint-note">标记完成后获得经验值，并记录到本地进度。</span>'
@@ -704,6 +706,7 @@
   }
   function crumb() {
     var p = parseHash();
+    if (p[0] === 'topics' && window.TopicGuides) { location.replace(window.TopicGuides.legacy(p)); return; }
     if (!p.length) return '<b>首页</b>';
     if (window.StudyHub && window.StudyHub.handles(p[0])) return '<b>' + esc(window.StudyHub.title(p[0])) + '</b>';
     var ch = findChapter(p[1]);
@@ -737,8 +740,8 @@
     if (kind === 'quiz') { renderQuiz(ch); renderTopbar(crumb()); syncNav(); if (window.StudyHub) window.StudyHub.follow(p); return; }
     if (kind === 'ex') { renderExercises(ch); renderTopbar(crumb()); syncNav(); if (window.StudyHub) window.StudyHub.follow(p); return; }
     if (kind === 'interview') { renderInterview(ch); renderTopbar(crumb()); syncNav(); if (window.StudyHub) window.StudyHub.follow(p); return; }
-    if (kind === 's') { renderChapter(ch, p[3]); renderTopbar(crumb()); syncNav(); if (window.AlgorithmLab) window.AlgorithmLab.mountAll(); if (window.StudyHub) window.StudyHub.follow(p); return; }
-    renderChapter(ch, null); renderTopbar(crumb()); syncNav(); if (window.AlgorithmLab) window.AlgorithmLab.mountAll();
+    if (kind === 's') { renderChapter(ch, p[3]); renderTopbar(crumb()); syncNav(); if (window.TopicGuides) { window.TopicGuides.mount($('#content')); window.TopicGuides.follow(p); } if (window.AlgorithmLab) window.AlgorithmLab.mountAll(); if (window.StudyHub) window.StudyHub.follow(p); return; }
+    renderChapter(ch, null); renderTopbar(crumb()); syncNav(); if (window.TopicGuides) window.TopicGuides.mount($('#content')); if (window.AlgorithmLab) window.AlgorithmLab.mountAll();
   }
 
   function syncNav() {
